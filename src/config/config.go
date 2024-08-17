@@ -2,10 +2,9 @@ package config
 
 type (
 	Config struct {
-		Env              string           `mapstructure:"ENV"`
-		Host             Host             `mapstructure:",squash"`
-		PostgresDBConfig PostgresDBConfig `mapstructure:",squash"`
-		MongoDBConfig    MongoDBConfig    `mapstructure:",squash"`
+		Env        string     `mapstructure:"ENV"`
+		Host       Host       `mapstructure:",squash"`
+		DataSource DataSource `mapstructure:",squash"`
 	}
 
 	Host struct {
@@ -14,6 +13,11 @@ type (
 		WriteTimeout int    `mapstructure:"HOST_WRITE_TIMEOUT"`
 		ReadTimeout  int    `mapstructure:"HOST_READ_TIMEOUT"`
 		IdleTimeout  int    `mapstructure:"HOST_IDLE_TIMEOUT"`
+	}
+
+	DataSource struct {
+		PostgresDBConfig PostgresDBConfig `mapstructure:",squash"`
+		MongoDBConfig    MongoDBConfig    `mapstructure:",squash"`
 	}
 
 	PostgresDBConfig struct {
