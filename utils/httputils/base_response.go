@@ -3,6 +3,7 @@ package httputils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/audricimanuel/errorutils"
 	"go-chi-boilerplate/utils"
 	"go-chi-boilerplate/utils/constants"
 	"math"
@@ -10,7 +11,6 @@ import (
 )
 
 type (
-	Errors   map[string]string
 	BaseMeta struct {
 		Page      int `json:"page"`
 		Limit     int `json:"limit"`
@@ -20,34 +20,36 @@ type (
 
 	// BaseResponse is the base response
 	BaseResponse struct {
-		Code       string      `json:"code"`
-		Message    string      `json:"message"`
-		Data       interface{} `json:"data"`
-		Meta       *BaseMeta   `json:"meta"`
-		Errors     []Errors    `json:"errors"`
-		ServerTime int64       `json:"server_time"`
+		Status int         `json:"status"`
+		Data   interface{} `json:"data"`
+		Error  *string     `json:"error_message"`
+		Meta   *BaseMeta   `json:"meta,omitempty"`
 	}
 )
 
 // MapBaseResponse map response
-func MapBaseResponse(w http.ResponseWriter, r *http.Request, message string, data interface{}, meta *BaseMeta, err error, errors []Errors) {
-	// Check Request ID
-	requestID := r.Header.Get("request-id")
-	if requestID != "" {
-		bodyByte, _ := json.Marshal(data)
-		fmt.Println("[RESPONSE: ", r.URL.String(), "] REQUEST_ID: ", requestID, " BODY:", string(bodyByte))
-	}
+func MapBaseResponse(w http.ResponseWriter, r *http.Request, data interface{}, err errorutils.HttpError, meta *BaseMeta) {
+	var errMsg *string
 
-	statusCode, code := utils.GetStatusCode(err)
+	// Check Request ID
+	reqId := "-"
+	if requestID := r.Header.Get("request-id"); requestID != "" {
+		reqId = requestID
+	}
+	dataByte, _ := json.Marshal(data)
+	fmt.Printf("[RESPONSE: [%s] %s] REQUEST_ID: %s DATA: %s", r.Method, r.URL.String(), reqId, string(dataByte))
+
+	statusCode, message := errorutils.GetStatusCode(err)
+	if message != errorutils.SUCCESS {
+		errMsg = &message
+	}
 
 	// Payload Response
 	payload := BaseResponse{
-		Code:       code,
-		Message:    message,
-		Data:       data,
-		Errors:     errors,
-		ServerTime: utils.TimeNow().Unix(),
-		Meta:       meta,
+		Status: statusCode,
+		Data:   data,
+		Error:  errMsg,
+		Meta:   meta,
 	}
 
 	// Marshal json response

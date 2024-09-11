@@ -23,9 +23,14 @@ func RegisterRouter(
 	setMiddlewareGlobal(mid, r)
 
 	// Swagger
-	r.Get("/swagger/*", httpSwagger.WrapHandler)
-	r.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/swagger/index.html", http.StatusMovedPermanently)
+	r.Group(func(r chi.Router) {
+		r.Use(mid.BasicAuth(cfg.SwaggerUsername, cfg.SwaggerPassword))
+		r.Route("/swagger", func(r chi.Router) {
+			r.Get("/*", httpSwagger.WrapHandler)
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/swagger/index.html", http.StatusMovedPermanently)
+			})
+		})
 	})
 
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +43,7 @@ func RegisterRouter(
 	return r
 }
 
-func setMiddlewareGlobal(mid *middleware.GoMiddleware, r *chi.Mux) {
+func setMiddlewareGlobal(mid middleware.GoMiddleware, r *chi.Mux) {
 	// Logger
 	r.Use(mid.LogRequest)
 

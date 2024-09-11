@@ -6,16 +6,18 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go-chi-boilerplate/src/config"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gorm.io/gorm"
 )
 
 type (
-	DatabaseCollection struct {
-		MongoDB      *mongo.Database
-		PostgresqlDB *sqlx.DB
+	DBCollection struct {
+		MongoDB        *mongo.Database
+		PostgresDBSqlx *sqlx.DB
+		PostgresDBGorm *gorm.DB
 	}
 )
 
-func NewDatabaseCollection(cfg config.Config) DatabaseCollection {
+func NewDatabaseCollection(cfg config.Config) DBCollection {
 	ctx := context.Background()
 
 	// mongodb
@@ -28,10 +30,15 @@ func NewDatabaseCollection(cfg config.Config) DatabaseCollection {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
 		postgresDBConfig.Host, postgresDBConfig.User, postgresDBConfig.Password, postgresDBConfig.Name, postgresDBConfig.Port, postgresDBConfig.SSLMode, postgresDBConfig.Timezone,
 	)
-	postgresDB := InitializePostgresqlDatabase(ctx, dsn)
 
-	return DatabaseCollection{
-		MongoDB:      mongoDB,
-		PostgresqlDB: postgresDB,
+	// postgres with sqlx
+	postgresDBSqlx := InitializePostgresqlDatabaseSqlx(ctx, dsn)
+	// postgres with gorm
+	postgresDBGorm := InitializePostgresqlDatabaseGorm(ctx, dsn)
+
+	return DBCollection{
+		MongoDB:        mongoDB,
+		PostgresDBSqlx: postgresDBSqlx,
+		PostgresDBGorm: postgresDBGorm,
 	}
 }

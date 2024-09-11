@@ -3,12 +3,35 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var (
+	LocServer *time.Location
+)
+
+func init() {
+	LocServer = MustLoadLocation(os.Getenv("HOST_LOCATION"))
+}
+
+// PUBLIC METHOD
+func MustLoadLocation(name string) *time.Location {
+	l, err := time.LoadLocation(name)
+	if err != nil {
+		panic(fmt.Sprintf("time util: could not load location %s: %s", name, err.Error()))
+	}
+	return l
+}
+
+func TimeNow() time.Time {
+	return time.Now().In(LocServer)
+}
 
 func ConvertStrToInt(number string, defaultResult int) int {
 	result, err := strconv.Atoi(number)
@@ -62,11 +85,6 @@ func CustomError(message string) error {
 
 func ConvertErrorToMap(key string, err error) map[string]string {
 	return map[string]string{key: err.Error()}
-}
-
-func TimeNow() time.Time {
-	loc, _ := time.LoadLocation("Asia/Jakarta")
-	return time.Now().In(loc)
 }
 
 func GenerateSlug(text string) string {

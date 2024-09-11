@@ -13,11 +13,11 @@ type (
 	}
 
 	ExampleRepositoryImpl struct {
-		db database.DatabaseCollection
+		db database.DBCollection
 	}
 )
 
-func NewExampleRepository(db database.DatabaseCollection) ExampleRepository {
+func NewExampleRepository(db database.DBCollection) ExampleRepository {
 	return &ExampleRepositoryImpl{
 		db: db,
 	}

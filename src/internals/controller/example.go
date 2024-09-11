@@ -2,7 +2,6 @@ package controller
 
 import (
 	"go-chi-boilerplate/src/internals/service"
-	"go-chi-boilerplate/utils/constants"
 	"go-chi-boilerplate/utils/httputils"
 	"net/http"
 )
@@ -32,5 +31,5 @@ func NewExampleController(e service.ExampleService) ExampleController {
 // @Router			/example [get]
 func (e *ExampleControllerImpl) GetExample(w http.ResponseWriter, r *http.Request) {
 	data := e.exampleService.GetExample(r.Context())
-	httputils.MapBaseResponse(w, r, constants.SUCCESS, data, nil, nil, nil)
+	httputils.MapBaseResponse(w, r, data, nil, nil)
 }

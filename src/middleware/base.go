@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"go-chi-boilerplate/src/config"
@@ -9,10 +10,17 @@ import (
 	"log"
 	"net/http"
 	"runtime/debug"
+	"strings"
 )
 
 type (
-	GoMiddleware struct {
+	GoMiddleware interface {
+		LogRequest(next http.Handler) http.Handler
+		RecoverPanic(next http.Handler) http.Handler
+		BasicAuth(username, password string) func(http.Handler) http.Handler
+	}
+
+	GoMiddlewareImpl struct {
 		Config config.Config
 	}
 )
@@ -24,13 +32,13 @@ const (
 	ParamQueryKeyword = "keyword"
 )
 
-func InitMiddleware(cfg config.Config) *GoMiddleware {
-	return &GoMiddleware{
+func InitMiddleware(cfg config.Config) GoMiddleware {
+	return &GoMiddlewareImpl{
 		Config: cfg,
 	}
 }
 
-func (m *GoMiddleware) LogRequest(next http.Handler) http.Handler {
+func (m *GoMiddlewareImpl) LogRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestLog := MapLogRequest(r)
 		fmt.Println(requestLog)
@@ -58,7 +66,12 @@ func MapLogRequest(r *http.Request) string {
 		// Restore the io.ReadCloser to its original state
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
-	return fmt.Sprint("[IN_REQUEST: ", r.URL, "] REQUEST_ID: ", rHeader.Get("request-id"), " HEADER:", string(headerByte))
+	reqId := "-"
+	if requestId := rHeader.Get("request-id"); requestId != "" {
+		reqId = requestId
+	}
+
+	return fmt.Sprintf("[IN_REQUEST: [%s] %s] REQUEST_ID: %s HEADER: %s", r.Method, r.URL.String(), reqId, string(headerByte))
 }
 
 func ServerError(w http.ResponseWriter, err error, code int) {
@@ -69,7 +82,7 @@ func ServerError(w http.ResponseWriter, err error, code int) {
 	http.Error(w, http.StatusText(code), code)
 }
 
-func (m *GoMiddleware) RecoverPanic(next http.Handler) http.Handler {
+func (m *GoMiddlewareImpl) RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -80,4 +93,38 @@ func (m *GoMiddleware) RecoverPanic(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (m *GoMiddlewareImpl) BasicAuth(username, password string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			if auth == "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+				return
+			}
+
+			// Decode the Base64 encoded auth string
+			parts := strings.SplitN(auth, " ", 2)
+			if len(parts) != 2 || parts[0] != "Basic" {
+				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+				return
+			}
+
+			decoded, err := base64.StdEncoding.DecodeString(parts[1])
+			if err != nil {
+				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+				return
+			}
+
+			userPass := strings.SplitN(string(decoded), ":", 2)
+			if len(userPass) != 2 || userPass[0] != username || userPass[1] != password {
+				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
